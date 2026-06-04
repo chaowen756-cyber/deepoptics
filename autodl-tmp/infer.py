@@ -547,35 +547,61 @@ def find_scenes(input_dir: str, multi_scene: bool) -> list:
 
 
 def main():
-    parser = argparse.ArgumentParser(description='高光谱+深度联合重建推理')
-    
-    # 必需参数
-    parser.add_argument('--input_dir', type=str, required=True,
-                       help='输入数据目录（包含 *_hs.exr 和 *_depth_map.exr 文件）')
-    parser.add_argument('--ckpt_path', type=str, required=True,
-                       help='模型 checkpoint 路径（文件或目录）')
-    
-    # 可选参数
-    parser.add_argument('--output_dir', type=str, default='./inference_results1',
-                       help='输出目录 (default: ./inference_results)')
+    parser = argparse.ArgumentParser(
+        description='高光谱+深度联合重建推理',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+示例:
+    python infer.py data/Hyperspectral_LearnedDepth/version_61/checkpoints/
+    python infer.py data/Hyperspectral_LearnedDepth/version_61/checkpoints/epoch=278-val_loss=0.1973.ckpt
+    python infer.py version_61/checkpoints/ --input_dir ./Baek数据集/deploy\ 16 --multi_scene=False
+        """
+    )
+
+    # 位置参数：只需指定模型路径
+    parser.add_argument('ckpt_path', type=str,
+                       help='模型 checkpoint 路径（文件或目录均可）')
+
+    # 可选参数（有合理默认值，一般不用改）
+    parser.add_argument('--input_dir', type=str, default='./Baek数据集',
+                       help='输入数据目录 (default: ./Baek数据集)')
+    parser.add_argument('--output_dir', type=str, default='auto',
+                       help='输出目录 (default: auto — 自动从 ckpt 路径生成)')
     parser.add_argument('--patch_size', type=int, default=512,
                        help='推理 patch 尺寸 (default: 512)')
-    parser.add_argument('--multi_scene', action='store_true',
-                       help='是否处理多个场景（input_dir 包含多个 deploy X 文件夹）')
+    parser.add_argument('--multi_scene', type=lambda x: x.lower() != 'false', default=True,
+                       help='是否处理多个场景 (default: True, 设为 False 关闭)')
     parser.add_argument('--device', type=str, default='auto',
                        help='计算设备 (auto/cuda/cpu)')
     
     args = parser.parse_args()
-    
-    # 设备选择
+
+    # ---- 1. 查找 checkpoint ----
+    ckpt_path = find_checkpoint(args.ckpt_path)
+
+    # ---- 2. 自动生成 output_dir ----
+    if args.output_dir == 'auto':
+        # 从路径提取 version_X
+        ver_name = 'unknown'
+        for p in args.ckpt_path.rstrip('/').split('/'):
+            if p.startswith('version_'):
+                ver_name = p
+                break
+        # 从 ckpt 文件名提取标识
+        ckpt_name = os.path.splitext(os.path.basename(ckpt_path))[0]
+        args.output_dir = os.path.join(
+            'inference_results',
+            f'{ver_name}_{ckpt_name}'
+        )
+
+    # ---- 3. 设备选择 ----
     if args.device == 'auto':
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     else:
         device = torch.device(args.device)
     print(f"Using device: {device}")
-    
-    # 加载模型
-    ckpt_path = find_checkpoint(args.ckpt_path)
+
+    # ---- 4. 加载模型 ----
     model = load_model(ckpt_path, device)
     
     # 获取深度范围（从模型 hparams）

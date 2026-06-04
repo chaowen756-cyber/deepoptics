@@ -82,6 +82,7 @@ autodl-tmp/my_results_new_1/
 autodl-tmp/my_results_mae/
 autodl-tmp/result/
 autodl-tmp/depth_test_*/
+autodl-tmp/inference_results/
 
 # ============================================================
 # 日志文件
