@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(xargs ls -lh)",
+      "Bash(awk '{print $5, $NF}')"
+    ]
+  }
+}
