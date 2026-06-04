@@ -553,8 +553,8 @@ def main():
         epilog="""
 示例:
     python infer.py data/Hyperspectral_LearnedDepth/version_61/checkpoints/
-    python infer.py data/Hyperspectral_LearnedDepth/version_61/checkpoints/epoch=278-val_loss=0.1973.ckpt
-    python infer.py version_61/checkpoints/ --input_dir ./Baek数据集/deploy\ 16 --multi_scene=False
+    python infer.py version_61/checkpoints/ --input_dir "./Baek数据集/deploy 16"
+    python infer.py version_50/checkpoints/ --input_dir "./Baek数据集" --multi_scene=True
         """
     )
 
@@ -563,14 +563,14 @@ def main():
                        help='模型 checkpoint 路径（文件或目录均可）')
 
     # 可选参数（有合理默认值，一般不用改）
-    parser.add_argument('--input_dir', type=str, default='./Baek数据集',
-                       help='输入数据目录 (default: ./Baek数据集)')
+    parser.add_argument('--input_dir', type=str, default='./Baek数据集/deploy 1',
+                       help='输入数据目录 (default: ./Baek数据集/deploy 1)')
     parser.add_argument('--output_dir', type=str, default='auto',
                        help='输出目录 (default: auto — 自动从 ckpt 路径生成)')
     parser.add_argument('--patch_size', type=int, default=512,
                        help='推理 patch 尺寸 (default: 512)')
-    parser.add_argument('--multi_scene', type=lambda x: x.lower() != 'false', default=True,
-                       help='是否处理多个场景 (default: True, 设为 False 关闭)')
+    parser.add_argument('--multi_scene', type=lambda x: x.lower() != 'false', default=False,
+                       help='是否处理多个场景 (default: False, 设为 True 开启)')
     parser.add_argument('--device', type=str, default='auto',
                        help='计算设备 (auto/cuda/cpu)')
     
