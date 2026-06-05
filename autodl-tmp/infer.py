@@ -477,9 +477,27 @@ def process_scene(model, hs_path: str, depth_path: str, output_dir: str,
 def load_model(ckpt_path: str, device: torch.device) -> SnapshotDepthHS:
     """加载模型"""
     print(f"Loading checkpoint: {ckpt_path}")
-    
+
+    # ---- 兼容旧版 pytorch_lightning checkpoint ----
+    # 旧版 lightning 保存的 ckpt 引用了已废弃的模块
+    import sys
+    import types
+
+    class _DummyLegacyModule(types.ModuleType):
+        """占位模块：pickle 需要什么属性就自动返回一个 dummy 类型"""
+        def __getattr__(self, name):
+            return type(name, (), {})
+
+    legacy_patches = [
+        'pytorch_lightning.utilities.argparse_utils',
+        'pytorch_lightning.utilities.parsing',
+    ]
+    for mod_name in legacy_patches:
+        if mod_name not in sys.modules:
+            sys.modules[mod_name] = _DummyLegacyModule(mod_name)
+
     checkpoint = torch.load(ckpt_path, map_location='cpu')
-    
+
     # 提取 hparams
     if 'hyper_parameters' in checkpoint:
         hparams_dict = checkpoint['hyper_parameters']
@@ -493,16 +511,16 @@ def load_model(ckpt_path: str, device: torch.device) -> SnapshotDepthHS:
             hparams = argparse.Namespace(**hparams_dict)
     else:
         raise ValueError("Checkpoint 中没有找到 hyper_parameters")
-    
+
     # 加载模型
     model = SnapshotDepthHS.load_from_checkpoint(ckpt_path, hparams=hparams)
     model.eval()
     model.to(device)
-    
+
     print(f"  Model loaded successfully")
     print(f"  min_depth: {model.hparams.min_depth}m, max_depth: {model.hparams.max_depth}m")
     print(f"  crop_width: {model.hparams.crop_width}")
-    
+
     return model
 
 

@@ -287,44 +287,66 @@ class HyperspectralDepthDataset(Dataset):
         self.max_depth = max_depth
 
         self.sample_pairs = []
-        for folder_name in scene_folders:
-            match = re.search(r'\d+', folder_name)
-            if not match: continue
-            scene_num = match.group(0).zfill(2)
+        self.base_dir = base_dir
 
-            hs_path = os.path.join(base_dir, folder_name, f'scene{scene_num}_hs.exr')
-            depth_path = os.path.join(base_dir, folder_name, f'scene{scene_num}_depth_map.exr')
+        # 自动检测：如果目录下有 NPZ 文件，直接走快速路径
+        self.use_npz = os.path.exists(
+            os.path.join(base_dir, 'scene_01.npz'))
 
-            if os.path.exists(hs_path) and os.path.exists(depth_path):
-                self.sample_pairs.append({'hs_path': hs_path, 'depth_path': depth_path, 'id': f'scene_{scene_num}'})
-            else:
-                # 仅在调试时打印，避免刷屏
-                pass
+        if self.use_npz:
+            # NPZ 模式：直接按 scene_XX.npz 查找
+            for folder_name in scene_folders:
+                match = re.search(r'\d+', folder_name)
+                if not match: continue
+                scene_num = match.group(0).zfill(2)
+                npz_path = os.path.join(base_dir, f'scene_{scene_num}.npz')
+                if os.path.exists(npz_path):
+                    self.sample_pairs.append({'npz_path': npz_path, 'id': f'scene_{scene_num}'})
+            print(f"✅ NPZ 模式: 找到 {len(self.sample_pairs)} 个预处理场景")
+        else:
+            # EXR 模式：原有逻辑
+            for folder_name in scene_folders:
+                match = re.search(r'\d+', folder_name)
+                if not match: continue
+                scene_num = match.group(0).zfill(2)
+
+                hs_path = os.path.join(base_dir, folder_name, f'scene{scene_num}_hs.exr')
+                depth_path = os.path.join(base_dir, folder_name, f'scene{scene_num}_depth_map.exr')
+
+                if os.path.exists(hs_path) and os.path.exists(depth_path):
+                    self.sample_pairs.append({'hs_path': hs_path, 'depth_path': depth_path, 'id': f'scene_{scene_num}'})
+                else:
+                    pass
 
     def __len__(self):
         return len(self.sample_pairs)
 
     def __getitem__(self, idx):
         sample = self.sample_pairs[idx]
-        hs_path = sample['hs_path']
-        depth_path = sample['depth_path']
         sample_id = sample['id']
-        
-        try:
-            hs_image = read_exr(hs_path)
-            depth_map = read_exr(depth_path) 
-        except Exception as e:
-            raise IOError(f"无法读取文件: {sample_id} \n错误: {e}")
 
-        hs_image = hs_image.astype(np.float32)
-        depth_map = depth_map.astype(np.float32)
+        if self.use_npz:
+            # ---- 快速路径：直接加载预处理好的 NPZ ----
+            data = np.load(sample['npz_path'])
+            hs_image = data['hs'].astype(np.float32)
+            depth_map = data['depth'].astype(np.float32)   # 预处理时已 mm→m
+        else:
+            # ---- 原有路径：从 EXR 读取 ----
+            hs_path = sample['hs_path']
+            depth_path = sample['depth_path']
 
-        # 确保深度图是 (H, W)
-        if depth_map.ndim == 3:
-            depth_map = depth_map.squeeze(-1)
-        
-        # --- 深度单位转换 (mm -> m) ---
-        depth_map = depth_map / 1000.0
+            try:
+                hs_image = read_exr(hs_path)
+                depth_map = read_exr(depth_path)
+            except Exception as e:
+                raise IOError(f"无法读取文件: {sample_id} \n错误: {e}")
+
+            hs_image = hs_image.astype(np.float32)
+            depth_map = depth_map.astype(np.float32)
+
+            if depth_map.ndim == 3:
+                depth_map = depth_map.squeeze(-1)
+            depth_map = depth_map / 1000.0    # mm → m
 
         # ============================================================
         # 步骤 A: 生成 Mask (在归一化造成负数之前)
