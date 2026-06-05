@@ -202,49 +202,49 @@ class BaseRotationallySymmetricCamera(BaseCamera):
 class RotationallySymmetricCamera(BaseRotationallySymmetricCamera):
     def __init__(self, *args, mask_upsample_factor=1, requires_grad=False, **kwargs):
         super().__init__(*args, **kwargs)
-#         init_heightmap = torch.zeros(self.mask_size // 2 // mask_upsample_factor)
+        init_heightmap = torch.zeros(self.mask_size // 2 // mask_upsample_factor)
          # ============================================================
         # 菲涅尔透镜初始化 (Fresnel DOE Lens Pattern)
         # ============================================================
         # 目标：打破对称性，解决深度反转问题
         # 方法：使用传统菲涅尔透镜模式初始化 DOE，赋予系统初始光焦度
         
-        # 1. 计算物理坐标
-        n_samples = self.mask_size // 2 // mask_upsample_factor
-        # 每个可优化参数点对应的物理径向坐标
-        r_indices = torch.arange(n_samples, dtype=torch.float32)
-        r_physical = r_indices * self.mask_pitch * mask_upsample_factor
+#         # 1. 计算物理坐标
+#         n_samples = self.mask_size // 2 // mask_upsample_factor
+#         # 每个可优化参数点对应的物理径向坐标
+#         r_indices = torch.arange(n_samples, dtype=torch.float32)
+#         r_physical = r_indices * self.mask_pitch * mask_upsample_factor
         
-        # 2. 设计基准：选取中心波长
-        mid_idx = len(self.wavelengths) // 2
-        design_wavelength = self.wavelengths[mid_idx].item()
-        n_design = refractive_index(torch.tensor(design_wavelength)).item()
+#         # 2. 设计基准：选取中心波长
+#         mid_idx = len(self.wavelengths) // 2
+#         design_wavelength = self.wavelengths[mid_idx].item()
+#         n_design = refractive_index(torch.tensor(design_wavelength)).item()
         
-        # 3. 高度与相位公式
-        # 产生 2π 相位延迟的物理高度周期
-        h_max = design_wavelength / (n_design - 1.0)
+#         # 3. 高度与相位公式
+#         # 产生 2π 相位延迟的物理高度周期
+#         h_max = design_wavelength / (n_design - 1.0)
         
-        # 4. 透镜参数：使用主透镜焦距
-        f_lens = self.focal_length
+#         # 4. 透镜参数：使用主透镜焦距
+#         f_lens = self.focal_length
         
-        # 5. 薄透镜的理想抛物面矢高公式
-        # h_ideal(r) = r^2 / (2 * f * (n - 1))
-        h_ideal = (r_physical ** 2) / (2.0 * f_lens * (n_design - 1.0))
+#         # 5. 薄透镜的理想抛物面矢高公式
+#         # h_ideal(r) = r^2 / (2 * f * (n - 1))
+#         h_ideal = (r_physical ** 2) / (2.0 * f_lens * (n_design - 1.0))
         
-        # 6. 菲涅尔折叠 (Fresnel Wrapping)
-        # 通过取模运算将抛物面折叠为菲涅尔结构
-        # 公式：h_init = h_max - (h_ideal mod h_max)
-        # 目的：生成聚光透镜（中心厚/相位延迟大，边缘薄）
-        h_wrapped = torch.fmod(h_ideal, h_max)
-        init_heightmap = h_max - h_wrapped
+#         # 6. 菲涅尔折叠 (Fresnel Wrapping)
+#         # 通过取模运算将抛物面折叠为菲涅尔结构
+#         # 公式：h_init = h_max - (h_ideal mod h_max)
+#         # 目的：生成聚光透镜（中心厚/相位延迟大，边缘薄）
+#         h_wrapped = torch.fmod(h_ideal, h_max)
+#         init_heightmap = h_max - h_wrapped
         
-        # 7. 打破对称性：加入极微量的高斯噪声
-        # 防止优化器因数值完全对称而无法启动
-        noise = torch.randn_like(init_heightmap) * 1e-6 * h_max
-        init_heightmap = init_heightmap + noise
+#         # 7. 打破对称性：加入极微量的高斯噪声
+#         # 防止优化器因数值完全对称而无法启动
+#         noise = torch.randn_like(init_heightmap) * 1e-6 * h_max
+#         init_heightmap = init_heightmap + noise
         
-        # 8. 确保非负（物理约束）
-        init_heightmap = torch.clamp(init_heightmap, min=0.0)
+#         # 8. 确保非负（物理约束）
+#         init_heightmap = torch.clamp(init_heightmap, min=0.0)
 
         self.heightmap1d_ = nn.Parameter(init_heightmap, requires_grad=requires_grad)
 # ============================================================

@@ -87,12 +87,12 @@ def main():
         hs = read_exr(hs_path)                          # (H, W, 29)
         dp = read_exr(depth_path).squeeze(-1) / 1000.0  # (H, W), mm→m
 
-        # 保存 float32，保持原始精度
-        out_path = os.path.join(out_dir, f"scene_{i:02d}.npz")
-        np.savez_compressed(out_path, hs=hs, depth=dp)
+        # 存为 .npy（无压缩，加载速度最快）
+        np.save(os.path.join(out_dir, f"scene_{i:02d}_hs.npy"), hs)
+        np.save(os.path.join(out_dir, f"scene_{i:02d}_depth.npy"), dp)
 
-        size_mb = os.path.getsize(out_path) / (1024 * 1024)
-        print(f"完成 → {size_mb:.0f} MB")
+        hs_mb = os.path.getsize(os.path.join(out_dir, f"scene_{i:02d}_hs.npy")) / (1024 * 1024)
+        print(f"完成 → HS {hs_mb:.0f} MB + Depth")
 
     print(f"\n全部完成！18 个场景已保存到 {out_dir}/")
 

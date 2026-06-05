@@ -182,9 +182,8 @@ class SnapshotDepthHS(pl.LightningModule):
         
         logs = {**loss_logs, **misc_logs}
         
-#         if not self.global_step % self.hparams.summary_track_train_every:
-#             # 可以在 log images 时把 mask 也画出来看看，或者只画 masked 后的深度图
-        self.__log_images(outputs, outputs.target_images, outputs.target_depthmaps, 'train',final_mask)
+        if not self.global_step % self.hparams.summary_track_train_every:
+            self.__log_images(outputs, outputs.target_images, outputs.target_depthmaps, 'train',final_mask)
 
         self.log_dict(logs)
         return data_loss

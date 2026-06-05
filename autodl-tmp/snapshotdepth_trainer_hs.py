@@ -163,7 +163,7 @@ if __name__ == '__main__':
     # 设置一些默认值
     parser.set_defaults(
         # gpus=1, # 在M1上运行时，最好从命令行指定
-        default_root_dir='autodl-tmp/data',
+        default_root_dir='/root/autodl-tmp/data',
         max_epochs=100,
     )
 

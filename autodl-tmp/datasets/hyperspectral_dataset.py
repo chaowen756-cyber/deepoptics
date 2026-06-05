@@ -289,20 +289,23 @@ class HyperspectralDepthDataset(Dataset):
         self.sample_pairs = []
         self.base_dir = base_dir
 
-        # 自动检测：如果目录下有 NPZ 文件，直接走快速路径
-        self.use_npz = os.path.exists(
-            os.path.join(base_dir, 'scene_01.npz'))
+        # 自动检测：如果目录下有 .npy 预处理文件，直接走快速路径
+        self.use_npy = os.path.exists(
+            os.path.join(base_dir, 'scene_01_hs.npy'))
 
-        if self.use_npz:
-            # NPZ 模式：直接按 scene_XX.npz 查找
+        if self.use_npy:
             for folder_name in scene_folders:
                 match = re.search(r'\d+', folder_name)
                 if not match: continue
                 scene_num = match.group(0).zfill(2)
-                npz_path = os.path.join(base_dir, f'scene_{scene_num}.npz')
-                if os.path.exists(npz_path):
-                    self.sample_pairs.append({'npz_path': npz_path, 'id': f'scene_{scene_num}'})
-            print(f"✅ NPZ 模式: 找到 {len(self.sample_pairs)} 个预处理场景")
+                hs_npy = os.path.join(base_dir, f'scene_{scene_num}_hs.npy')
+                dp_npy = os.path.join(base_dir, f'scene_{scene_num}_depth.npy')
+                if os.path.exists(hs_npy) and os.path.exists(dp_npy):
+                    self.sample_pairs.append({
+                        'hs_npy': hs_npy, 'depth_npy': dp_npy,
+                        'id': f'scene_{scene_num}'
+                    })
+            print(f"✅ NPY 快速模式: 找到 {len(self.sample_pairs)} 个预处理场景")
         else:
             # EXR 模式：原有逻辑
             for folder_name in scene_folders:
@@ -325,11 +328,11 @@ class HyperspectralDepthDataset(Dataset):
         sample = self.sample_pairs[idx]
         sample_id = sample['id']
 
-        if self.use_npz:
-            # ---- 快速路径：直接加载预处理好的 NPZ ----
-            data = np.load(sample['npz_path'])
-            hs_image = data['hs'].astype(np.float32)
-            depth_map = data['depth'].astype(np.float32)   # 预处理时已 mm→m
+        if self.use_npy:
+            # ---- 快速路径：直接加载预处理好的 .npy（无压缩，~0.05s） ----
+            hs_image = np.load(sample['hs_npy'])
+            depth_map = np.load(sample['depth_npy'])
+            # 预处理时已 mm→m，无需再除 1000
         else:
             # ---- 原有路径：从 EXR 读取 ----
             hs_path = sample['hs_path']
